@@ -8,7 +8,7 @@
 #                                                                              #
 #### 2015-02-26 ################################################################
 
-import sys, hashlib
+import sys, hashlib, math
 from seiscomp3 import IO, DataModel
 from optparse import OptionParser
 
@@ -175,28 +175,31 @@ def datafromxml(filename):
 '''
 Scales
 '''
-def getsize(value):
+def getsize(value, scale, power):
 	if value == None:
 		return 1.0
 
-	return int(value / 2.0 + 0.5)
+	v = int((math.pow(power,value)/2.0)*10*scale)/10
+	if v < 0.2: v = 0.2
 
-def getcolor(value):
-	if value <= 10:
+	return v
+
+def getcolor(value,  scale):
+	if value <= 10 * scale:
 		return "FF152F9D"
-	elif value < 35:
+	elif value < 35 * scale:
 		return "FF15509D"
-	elif value < 65:
+	elif value < 65 * scale:
 		return "FF156D9D"
-	elif value < 85:
+	elif value < 85 * scale:
 		return "FF15889D"
-	elif value < 120:
+	elif value < 120 * scale:
 		return "FF159D9B"
-	elif value < 300:
+	elif value < 300 * scale:
 		return "FF128337"
-	elif value < 500:
+	elif value < 500 * scale:
 		return "FF0E5A13"
-	elif value < 1000:
+	elif value < 1000 * scale:
 		return "FF222605"
 	else:
 		return "FF512B10"
@@ -210,6 +213,11 @@ def make_cmdline_parser():
 	parser = OptionParser(usage="%prog [options] <files>", version="1.0", add_help_option = True)
 
 	parser.add_option("-c","--color", action="store_true", dest="usemagdep", help="Use magnitude for symbol size and depth to color circles", default=False)
+
+
+	parser.add_option("--magpower", dest="magpower", help="Mag normalization power", default=1.4)
+	parser.add_option("--magscale", dest="magscale", help="Mag normalization scale", default=1.0)
+	parser.add_option("--depthscale", dest="depthscale", help="Depth scale, by default depth is between 0-1000km in 9 steps, making this number smaller than 1.0 reduces the maximum depth while keeping the number of colors", default=1.0)
 
 	parser.add_option("--mindepth", type="string", dest="mindep", help="Filter events with depths smaller than MINDEP", default=None)
 	parser.add_option("--maxdepth", type="string", dest="maxdep", help="Filter events with depths larger than MAXDEP", default=None)
@@ -230,6 +238,24 @@ if __name__ == "__main__":
 	# Styler
 	#
 	styler = StyleFactory()
+
+	try:
+		float(options.magpower)
+	except:
+		print >>sys.stderr,"Bad mag power value."
+		sys.exit(1)
+
+	try:
+		float(options.magscale)
+	except:
+		print >>sys.stderr,"Bad mag scale value."
+		sys.exit(1)
+
+	try:
+		float(options.depthscale)
+	except:
+		print >>sys.stderr,"Bad depth scale value."
+		sys.exit(1)
 
 	# Loop each file
 	#
@@ -255,7 +281,8 @@ if __name__ == "__main__":
 		# Find style
 		#
 		if options.usemagdep:
-			style = styler.getstyle(size = getsize(data['mag']), color = getcolor(data['dep']))
+			style = styler.getstyle(size = getsize(data['mag'], float(options.magscale), float(options.magpower)),
+									color = getcolor(data['dep'], float(options.depthscale)))
 		else:
 			style = styler.basicstyle()
 
