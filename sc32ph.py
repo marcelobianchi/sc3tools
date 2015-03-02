@@ -2,29 +2,32 @@
 # -*- coding: utf-8 -*-
 #
 ################################################################################
-#																			  #
-#   SeisComp3 XML to hypoDD converter										  #
-#   Copyright (C) 2015  Marcelo Belentani de Bianchi						   #
-#																			  #
-#   This program is free software; you can redistribute it and/or modify	   #
-#   it under the terms of the GNU General Public License as published by	   #
-#   the Free Software Foundation; either version 2 of the License, or		  #
-#   (at your option) any later version.										#
-#																			  #
-#   This program is distributed in the hope that it will be useful,			#
-#   but WITHOUT ANY WARRANTY; without even the implied warranty of			 #
-#   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the			  #
-#   GNU General Public License for more details.							   #
-#																			  #
-#   You should have received a copy of the GNU General Public License along	#
-#   with this program; if not, write to the Free Software Foundation, Inc.,	#
-#   51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.				#
-#																			  #
+#                                                                              #
+#   SeisComp3 XML to hypoDD converter                                          #
+#   Copyright (C) 2015  Marcelo Belentani de Bianchi                           #
+#                                                                              #
+#   This program is free software; you can redistribute it and/or modify       #
+#   it under the terms of the GNU General Public License as published by       #
+#   the Free Software Foundation; either version 2 of the License, or          #
+#   (at your option) any later version.                                        #
+#                                                                              #
+#   This program is distributed in the hope that it will be useful,            #
+#   but WITHOUT ANY WARRANTY; without even the implied warranty of             #
+#   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the              #
+#   GNU General Public License for more details.                               #
+#                                                                              #
+#   You should have received a copy of the GNU General Public License along    #
+#   with this program; if not, write to the Free Software Foundation, Inc.,    #
+#   51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.                #
+#                                                                              #
 #### 2015-02-28 ################################################################
 #
-import sys, math
-from seiscomp3 import IO, DataModel
+import os
+import sys
+import math
 import datetime
+from optparse import OptionParser
+from seiscomp3 import IO, DataModel, Core
 
 '''
 Station Class
@@ -33,11 +36,81 @@ Station Class
 	export, filter your events by this class before export.
 '''
 class Stations(object):
-	def __init__(self, inventory):
-		pass
+	def __init__(self, filename):
+		self.inventory = None
+		
+		ar = IO.XMLArchive()
 
-	def selectbyevent(self, event):
-		pass
+		err = ar.open(filename)
+		if err == False:
+			print >>sys.stderr, "Filename '%s' is not accessible." % (filename)
+			return None
+
+		obj = ar.readObject()
+		ar.close()
+
+		self.inventory = DataModel.Inventory.Cast(obj)
+
+		self.selection = { }
+
+	def select(self, n, s, l , c, t):
+		err = True
+
+		if type(self.inventory) == type(None): return err
+
+		for i in range(0, self.inventory.networkCount()):
+			net = self.inventory.network(i)
+			if net.code() != n: 
+				continue
+
+			for j in range(0, net.stationCount()):
+				sta = net.station(j)
+				if sta.code() != s:
+					continue
+
+				for k in range(0, sta.sensorLocationCount()):
+					loc = sta.sensorLocation(k)
+					if loc.code() != l:
+						continue
+
+					for l in range(0, loc.streamCount()):
+						cha = loc.stream(l)
+						if cha.code()[0:2] != c[0:2]:
+							continue
+
+						s = sc3timeparse(cha.start())
+						try:
+							e = cha.end()
+							e = sc3timeparse(e)
+						except Core.ValueException:
+							e = None
+
+						if s > t: continue
+						if e and e < t: continue
+
+						## FINISH SELECTION
+						ns = "%s%s" % (net.code(), sta.code())
+
+						if ns not in self.selection:
+							self.selection[ns] = ( ns, sta.latitude(), sta.longitude(), sta.elevation(), cha.depth() )
+
+						err = False
+						return err
+
+		print >>sys.stderr," Warning, station (%s.%s.%s.%s @ %s) not resolved." % (n,s,l,c,t)
+		return err
+
+	def selectbye(self, e):
+		if not isinstance(e, Event):
+			raise Exception("Object has bad value")
+
+		err = False
+		for (nslc, time, phase, weight) in e.getpicks():
+			(n, s, l, c) = nslc.split(".")
+			errr = self.select(n,s,l,c,time)
+			if errr: err = True
+
+		return err
 
 	def write(self, openfile):
 		pass
@@ -93,16 +166,13 @@ class Event(object):
 			self.rms = 0.0
 			pass
 
-		self.picks = { }
-
-		self.picks["P"] = []
-		self.picks["S"] = []
+		self.picks = { 'P': { }, 'S': { } }
 
 	def addPick(self, network, station, location, channel, time, phase, weight):
 		#
 		## Check phase
 		if phase not in self.picks.keys():
-			return False
+			return True
 
 		#
 		## Check that weight is 0.0
@@ -117,11 +187,28 @@ class Event(object):
 
 		#
 		## Save pick
-		self.picks[phase].append(("%s.%s.%s.%s" % (network,station,location,channel), time, phase, weight))
+		nslc = "%s.%s.%s.%s" % (network, station, location, channel)
+		if nslc in self.picks[phase]:
+			print >>sys.stderr," Phase %s is already set for %s" % (phase, nslc)
+			return True
+		self.picks[phase][nslc] = (nslc, time, phase, weight)
 
 		#
 		## Done
-		return True
+		return False
+
+	def getpicks(self, phase = None, nslc = None ):
+		picks = [ ]
+
+		for p in self.picks:
+			if phase is not None and phase != p: continue
+
+			if nslc is None:
+				picks.extend(self.picks[p].values())
+			elif nslc in self.picks[p]:
+				picks.append(self.picks[p][nslc])
+
+		return picks
 
 	def write(self, openfile, evid):
 		#
@@ -134,14 +221,7 @@ class Event(object):
 
 		#
 		## P-wave picks
-		for (nslc, time, phase, weight) in self.picks['P']:
-			tt = time - self.time
-			(n, s, l, c) = nslc.split(".")
-			print >>openfile,"%-7s %8.4f %3.1f %1s" % ("%s%s" % (n,s), tt.total_seconds(), weight, phase)
-
-		#
-		## S-wave picks
-		for (nslc, time, phase, weight) in self.picks['S']:
+		for (nslc, time, phase, weight) in self.getpicks():
 			tt = time - self.time
 			(n, s, l, c) = nslc.split(".")
 			print >>openfile,"%-7s %8.4f %3.1f %1s" % ("%s%s" % (n,s), tt.total_seconds(), weight, phase)
@@ -170,7 +250,12 @@ def datafromxml(filename):
 	ev = None
 
 	ar = IO.XMLArchive()
-	ar.open(filename)
+
+	err = ar.open(filename)
+	if err == False:
+		print >>sys.stderr, "Filename '%s' is not accessible." % (filename)
+		return None
+
 	obj = ar.readObject()
 	ar.close()
 
@@ -222,7 +307,7 @@ def datafromxml(filename):
 		print >>sys.stderr," %s" % (str(e))
 		return None
 
-	for i in range(ori.arrivalCount()):
+	for i in range(0,ori.arrivalCount()):
 		#
 		## Get Arrival
 		arrival = ori.arrival(i)
@@ -231,7 +316,7 @@ def datafromxml(filename):
 		## Get Pick
 		pick = ep.findPick(arrival.pickID())
 		if type(pick) == type(None):
-			print >>sys.stderr," Invalid pick -- " % arrival.pickID()
+			print >>sys.stderr," Invalid pick -- %s " % arrival.pickID()
 
 		#
 		## Get WaveformID
@@ -252,19 +337,52 @@ def datafromxml(filename):
 						arrival.weight()
 			)
 
-		if not err:
+		if err:
 			print >>sys.stderr," Pick %s, %s, was rejected" % (phaseHint.code(), arrival.pickID())
 
 	return ev
 
-if __name__ == "__main__":
-	events = [ ]
+def make_cmdline_parser():
+	# Create the parser
+	#
+	parser = OptionParser(usage="%prog [options] <files>", version="1.0", add_help_option = True)
 
-	station = Stations(None)
+	parser.add_option("--events", dest="eventfile", help="Filename to write events information and picks in hypoDD format", default=None)
+	parser.add_option("--stations", dest="stationfile", help="Filename to write station information in hypoDD format", default=None)
+
+	return parser
+
+if __name__ == "__main__":
+	parser = make_cmdline_parser()
+	(options, args) = parser.parse_args()
+
+	if options.eventfile is None and options.stationfile is None:
+		print >>sys.stderr,"Nothing to do, please specify at least one of the output files."
+		sys.exit(1)
+
+	station = Stations("Inventory.xml")
+
+	eventfile = None
+	stationfile = None
+
+	try:
+		if options.eventfile:
+			eventfile = open(options.eventfile, "w")
+	except IOError,e:
+		print >>sys.stderr,"Cannot open event file '%s'\n %s" % (options.eventfile, str(e))
+		sys.exit(1)
+
+	try:
+		if options.stationfile:
+			stationfile = open(options.stationfile, "w")
+	except IOError,e:
+		print >>sys.stderr,"Cannot open station file '%s'\n %s" % (options.stationfile, str(e))
+		sys.exit(1)
 
 	#
 	## Parse all files
-	for f in sys.argv:
+	sequenceid = 1
+	for f in args:
 		#
 		## Parse data
 		ev = datafromxml(f)
@@ -275,22 +393,37 @@ if __name__ == "__main__":
 
 		#
 		## Filter the station class
-		station.selectbyevent(ev)
+		station.selectbye(ev)
 
 		#
-		## Save the event
-		events.append(ev)
+		## Write to output
+		if eventfile:
+			ev.write(eventfile, sequenceid)
+
+		#
+		## Prepare a new sequence
+		sequenceid += 1
 
 	#
-	## Output events
-	id = 1
-	for ev in events:
-		ev.write(sys.stdout, id)
-		id += 1
+	## Close Event File if open
+	if eventfile:
+		eventfile.close()
 
 	#
 	## Output stations
-	station.write(sys.stdout)
+	if stationfile:
+		station.write(stationfile)
+		stationfile.close()
+
+	#
+	## Make sure empty files are not left around
+	if options.stationfile and os.path.getsize(options.stationfile) == 0:
+		print >>sys.stderr,"Warning, removing empty station file '%s'" % options.stationfile
+		os.unlink(options.stationfile)
+
+	if options.eventfile and os.path.getsize(options.eventfile) == 0:
+		print >>sys.stderr,"Warning, removing empty event file '%s'" % options.eventfile
+		os.unlink(options.eventfile)
 
 	#
 	## Done
