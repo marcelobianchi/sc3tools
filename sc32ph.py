@@ -38,13 +38,15 @@ Station Class
 class Stations(object):
 	def __init__(self, filename):
 		self.inventory = None
-		
+		self.selection = { }
+
 		ar = IO.XMLArchive()
 
 		err = ar.open(filename)
+
 		if err == False:
 			print >>sys.stderr, "Filename '%s' is not accessible." % (filename)
-			return None
+			return
 
 		obj = ar.readObject()
 		ar.close()
@@ -105,6 +107,9 @@ class Stations(object):
 			raise Exception("Object has bad value")
 
 		err = False
+
+		if type(self.inventory) == type(None): return True
+
 		for (nslc, time, phase, weight) in e.getpicks():
 			(n, s, l, c) = nslc.split(".")
 			errr = self.select(n,s,l,c,time)
@@ -113,7 +118,9 @@ class Stations(object):
 		return err
 
 	def write(self, openfile):
-		pass
+		for k in self.selection:
+			(ns, lat, lon, ele, dep) = self.selection[k]
+			print >>openfile, "%-7s %8.3f %8.3f" % (ns, lat, lon)
 
 '''
 Event Class
@@ -280,10 +287,10 @@ def datafromxml(filename):
 		print >>sys.stderr,"No origin (%s), skipping." % filename
 		return None
 
-	if evt.preferredMagnitudeID() == "":
-		print >>sys.stderr,"No magnitude (%s)" % filename
-
 	print >>sys.stderr,"\nProcessing event %s (%s)" % (evt.publicID(), filename)
+
+	if evt.preferredMagnitudeID() == "":
+		print >>sys.stderr," No magnitude (%s)" % filename
 
 	ori = ep.findOrigin(evt.preferredOriginID())
 	mag = ori.findMagnitude(evt.preferredMagnitudeID())
@@ -349,6 +356,7 @@ def make_cmdline_parser():
 
 	parser.add_option("--events", dest="eventfile", help="Filename to write events information and picks in hypoDD format", default=None)
 	parser.add_option("--stations", dest="stationfile", help="Filename to write station information in hypoDD format", default=None)
+	parser.add_option("--inventory", dest="inventory", help="Filename to read sc3 inventory from", default="inventory.xml")
 
 	return parser
 
@@ -360,7 +368,7 @@ if __name__ == "__main__":
 		print >>sys.stderr,"Nothing to do, please specify at least one of the output files."
 		sys.exit(1)
 
-	station = Stations("Inventory.xml")
+	station = Stations(options.inventory)
 
 	eventfile = None
 	stationfile = None
@@ -393,7 +401,9 @@ if __name__ == "__main__":
 
 		#
 		## Filter the station class
-		station.selectbye(ev)
+		err = station.selectbye(ev)
+		if err:
+			print >>sys.stderr, " Warning. Station is not selected."
 
 		#
 		## Write to output
