@@ -27,7 +27,7 @@ import sys, hashlib, math
 from seiscomp3 import IO, DataModel
 from optparse import OptionParser
 import seiscomp3
-import code
+import datetime, re
 
 '''
 Style Factory
@@ -100,21 +100,33 @@ def ptKML(openfile, options, code, channels, start, end, lon, lat, ele, desc, st
     if style:
         print >>openfile,'  <styleUrl>#%s</styleUrl>' % style
 
-    print >>openfile,'  <name>%s</name>' % (code)
+    print >>openfile,'  <name>%s</name>' % (code.split(".")[1])
     print >>openfile,'  <description><![CDATA['
 
-    print >>openfile,"<pre>Description: %s" % desc
-    print >>openfile,"Locations and Channels Names:"
+    print >>openfile,"<pre>"
+    
+    print >>openfile,"<b>Description:</b> %s" % desc
+    
+    print >>openfile,""
+    print >>openfile,"<b>Network:</b> %s" % (code.split(".")[0])
+    
+    print >>openfile,""
+    print >>openfile,"<b>Locations and Channels Names:</b>"
     print >>openfile,"(SEED Standard Naming)"
-    print >>openfile,"  %s" % channels
 
-    print >>openfile,"Operation Time:"
-    print >>openfile,'Start: %s End: %s' % (start, "--" if end is None else end)
+    for chunk in re.findall('.{21}',channels) if len(channels) > 21 else [channels]:
+        print >>openfile,"  %s" % chunk
+    print >>openfile,""
 
-    print >>openfile,"Station Location:"
-    print >>openfile,' Longitude: %+09.4f' % lon
-    print >>openfile,' Latitude:  %+09.4f' % lat
-    print >>openfile,' Elevation: %6.1f (m)' % ele
+    print >>openfile,"<b>Operation Time:</b>"
+    print >>openfile,'  Start: %s' % start
+    print >>openfile,'    End: %s' % ("--" if end is None else end)
+
+    print >>openfile,""
+    print >>openfile,"<b>Station Location:</b>"
+    print >>openfile,'  Longitude: %+09.4f' % lon
+    print >>openfile,'  Latitude:  %+09.4f' % lat
+    print >>openfile,'  Elevation: %6.1f (m)' % ele
 
     print >>openfile,'</pre>]]></description>'
 
@@ -140,19 +152,24 @@ def closeKML(openfile):
 Scales
 '''
 def getsize():
-    return 2.0
+    return 1.5
 
 def getcolor(network, open):
+    #cusp=0/46/166    # BL # 002ea6
+    #cunb=44/124/17   # BR # 23640e
+    #con=232/113/21   # ON # e87115
+    #cufrn=222/232/21 # NB # dee815
+    #6cbd50 -> 50BD6C
     if network == "BR":
-        return "FF152F9D"
+        return "FF50BD6C" if open == "true" else "CC50BD6C" 
     elif network == "NB":
-        return "FF15509D"
+        return "FF15E8DE" if open == "true" else "CC15E8DE"
     elif network == "ON":
-        return "FF156D9D"
+        return "FF1571E8" if open == "true" else "CC1571E8"
     elif network == "BL":
-        return "FF512B10"
+        return "FFA62E00" if open == "true" else "CCA62E00"
 
-    return "00000000"
+    return "FFDDDDDD" if open == "true" else "CCDDDDDD"
 
 def datafromxml(filename):
     ar = IO.XMLArchive()
@@ -176,6 +193,8 @@ def collect(sta):
         for cc in range(0,loc.streamCount()):
             cha = loc.stream(cc)
             codes.append("%s.%s" % ("--" if loc.code() == "" else loc.code(), cha.code()))
+#             sensor=sta.network().inventory().findSensor(cha.sensor())
+#             print "MA='%s' MO='%s' DS='%s' %s" % (sensor.manufacturer(),sensor.model(),sensor.description(),sensor.name())
 
     codes.sort(reverse = True)
     return ",".join(codes)
@@ -187,21 +206,35 @@ def make_cmdline_parser():
     # Create the parser
     #
     parser = OptionParser(usage="%prog [options] <files>", version="1.0", add_help_option = True)
+    parser.add_option("-f", "--filter", type="string", dest="filter", help="Network list to filter (BL,BR)", default=None)
+    parser.add_option("-o","--output", type="string", dest="output", help="Output filename", default=None)
+
     return parser
 
 if __name__ == "__main__":
     parser = make_cmdline_parser()
     (options, args) = parser.parse_args()
-    
+
+    fio = sys.stdout
+
+    if options.output:
+        fio = open(options.output,"w")
+
     # Styler
     #
     styler = StyleFactory()
 
     # Loop each file
     #
-    files = { }
-    for f in args:
+    records = {
+               'true' : { },
+               'false': { }}
 
+    if options.filter:
+        options.filter = options.filter.split(",")
+
+    for f in args:
+        print >>sys.stderr,"Processing file: %s" % f
         # Get data
         #
         inv = datafromxml(f)
@@ -209,13 +242,18 @@ if __name__ == "__main__":
 
         for nn in range(0,inv.networkCount()):
             net = inv.network(nn)
+            if options.filter and net.code() not in options.filter: continue
             for ss in range(0, net.stationCount()):
                 sta = net.station(ss)
 
                 try:
-                    end = sta.end().toString("%Y-%m-%dT%H:%M:%SZ")
+                    end = sta.end()
+                    d = datetime.datetime.strptime(end.toString("%Y-%m-%d %H:%M:%SZ"), "%Y-%m-%d %H:%M:%SZ")
+                    open = "true" if d > datetime.datetime.now() else "false"
+                    end = end.toString("%Y-%m-%dT%H:%M:%SZ")
                 except seiscomp3.Core.ValueException:
                     end = None
+                    open = "true"
                 
                 data = { }
                 code = "%s.%s" % (net.code(), sta.code())
@@ -223,6 +261,7 @@ if __name__ == "__main__":
                 data['desc'] = sta.description()
                 data['start'] = sta.start().toString("%Y-%m-%dT%H:%M:%SZ")
                 data['end'] = end
+                data['open'] = open
                 data['channels'] = collect(sta)
                 data['latitude'] = sta.latitude()
                 data['longitude'] = sta.longitude()
@@ -231,52 +270,60 @@ if __name__ == "__main__":
                 # Find style
                 #
                 style = styler.getstyle(size = getsize(),
-                                        color = getcolor(net.code(), net.start()))
+                                        color = getcolor(net.code(), open))
                 data['style'] = style
 
-                if code in files:
-                    if data['end'] is None and files[code]['end'] is not None:
-                        files[code] = data
+                if net.code() not in records[open]:
+                    records[open][net.code()] = { }
+
+                where = records[open][net.code()]
+
+                if code in where:
+                    if data['end'] is None and where[code]['open'] is "false":
+                        print >>sys.stderr,"Over-write."
+                        where[code] = data
                 else:
-                    files[code] = data
+                    where[code] = data
 
     # Start KML
     #
-    openKML(sys.stdout, options, styler)
+    openKML(fio, options, styler)
 
-    newFolder(sys.stdout, "Stations Already closed")
-    for (k,data) in files.iteritems():
-        if data['end'] is None: continue
-        ptKML(sys.stdout, options,
-            data['code'],
-            data['channels'],
-            data['start'],
-            data['end'],
-            data['longitude'],
-            data['latitude'],
-            data['elevation'],
-            data['desc'],
-            data['style'])
-    closeFolder(sys.stdout)
+    for (k,g) in records.iteritems():
+        if k == "false":
+            newFolder(fio, "Stations Already closed")
+        else:
+            newFolder(fio, "Stations in Operation")
 
-    newFolder(sys.stdout, "Stations in Operation")
-    for (k,data) in files.iteritems():
-        if data['end'] is not None: continue
-        ptKML(sys.stdout, options,
-            data['code'],
-            data['channels'],
-            data['start'],
-            data['end'],
-            data['longitude'],
-            data['latitude'],
-            data['elevation'],
-            data['desc'],
-            data['style'])
-    closeFolder(sys.stdout)
+        nkeys = g.keys()
+        nkeys.sort()
+        for n in nkeys:
+            net = g[n]
+            newFolder(fio, "%s network (%d stations)" % (n,len(net)))
 
+            skeys = net.keys()
+            skeys.sort()
+            for s in skeys:
+                data = net[s]
+                ptKML(fio, options,
+                    data['code'],
+                    data['channels'],
+                    data['start'],
+                    data['end'],
+                    data['longitude'],
+                    data['latitude'],
+                    data['elevation'],
+                    data['desc'],
+                    data['style'])
+            closeFolder(fio)
+        closeFolder(fio)
+ 
     # Finish
     #
-    closeKML(sys.stdout)
+    closeKML(fio)
+
+    if fio != sys.stdout:
+        fio.close()
 
     # END
     #
