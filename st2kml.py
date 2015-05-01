@@ -114,7 +114,7 @@ def ptKML(openfile, options, code, channels, start, end, lon, lat, ele, desc, rm
     print >>openfile,"<b>Locations and Channels Names:</b>"
     print >>openfile,"(SEED Standard Naming)"
 
-    for chunk in re.findall('.{21}',channels) if len(channels) > 21 else [channels]:
+    for chunk in re.findall('[-0-9]{2}[.][a-zA-Z]{3},[-0-9]{2}[.][a-zA-Z]{3},[-0-9]{2}[.][a-zA-Z]{3},{0,1}',channels):
         print >>openfile,"  %s" % chunk
     print >>openfile,""
 
@@ -191,15 +191,15 @@ def getcolor(network, open):
     #cufrn=222/232/21 # NB # dee815
     #6cbd50 -> 50BD6C
     if network == "BR":
-        return "FF50BD6C" if open == "true" else "CC50BD6C" 
+        return "FF50BD6C" if open == "true" else "AA50BD6C" 
     elif network == "NB":
-        return "FF15E8DE" if open == "true" else "CC15E8DE"
+        return "FF15E8DE" if open == "true" else "AA15E8DE"
     elif network == "ON":
-        return "FF1571E8" if open == "true" else "CC1571E8"
+        return "FF1571E8" if open == "true" else "AA1571E8"
     elif network == "BL":
-        return "FFA62E00" if open == "true" else "CCA62E00"
+        return "FFA62E00" if open == "true" else "AAA62E00"
 
-    return "FFDDDDDD" if open == "true" else "CCDDDDDD"
+    return "FFDDDDDD" if open == "true" else "AADDDDDD"
 
 def datafromxml(filename):
     ar = IO.XMLArchive()
