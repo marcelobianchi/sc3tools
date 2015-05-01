@@ -91,7 +91,7 @@ def openKML(openfile, options, styler):
     if styler:
         styler.dump(openfile)
 
-def ptKML(openfile, options, code, channels, start, end, lon, lat, ele, desc, style):
+def ptKML(openfile, options, code, channels, start, end, lon, lat, ele, desc, rmk, sensor, dtl, style):
     if start == None: return
     if lon == None: return
     if lat == None: return
@@ -128,6 +128,34 @@ def ptKML(openfile, options, code, channels, start, end, lon, lat, ele, desc, st
     print >>openfile,'  Latitude:  %+09.4f' % lat
     print >>openfile,'  Elevation: %6.1f (m)' % ele
 
+    method = {
+     None: "Unset",
+     '-': "Offline",
+     "S": "Satelite",
+     "W": "Wireless Lan Provider",
+     "2G": "Mobile Phone Network"
+    }
+
+    online = {
+         None: "Unknow",
+         '-': "Offline",
+         "S": "Online",
+         "W": "Online",
+         "2G": "Online"
+    }
+
+    print >>openfile,""
+    print >>openfile,"<b>Station Transmission:</b>"
+    if end is None:
+        print >>openfile,"  Status is %s" % online[rmk]
+        if online[rmk] == "Online":
+            print >>openfile,"  Method: %s" % method[rmk]
+    else:
+        print >>openfile,"  Status is closed."
+
+    print >>openfile,""
+    print >>openfile,"<b>Instruments in Station:</b>"
+    print >>openfile,"  %s ; %s" % ("--" if sensor is None else sensor, "--" if dtl is None else dtl)
     print >>openfile,'</pre>]]></description>'
 
     print >>openfile,'  <TimeSpan>'
@@ -255,10 +283,25 @@ if __name__ == "__main__":
                     end = None
                     open = "true"
                 
+                try:
+                    rmk = sta.remark().content()
+                    if rmk.find(";") != -1:
+                        rmk = rmk.split(";")
+                        dtl=rmk[2]
+                        sen=rmk[1]
+                        rmk=rmk[0]
+                except seiscomp3.Core.ValueException:
+                    rmk = None
+                    dtl = None
+                    sen = None
+                
                 data = { }
                 code = "%s.%s" % (net.code(), sta.code())
                 data['code'] = code
                 data['desc'] = sta.description()
+                data['remark'] = rmk
+                data['sensor'] = sen
+                data['dtl'] = dtl
                 data['start'] = sta.start().toString("%Y-%m-%dT%H:%M:%SZ")
                 data['end'] = end
                 data['open'] = open
@@ -314,6 +357,9 @@ if __name__ == "__main__":
                     data['latitude'],
                     data['elevation'],
                     data['desc'],
+                    data['remark'],
+                    data['sensor'],
+                    data['dtl'],
                     data['style'])
             closeFolder(fio)
         closeFolder(fio)
