@@ -386,7 +386,7 @@ if __name__ == "__main__":
     oneinst['shortname'] = "UnB"
     oneinst['network'] = "BR"
     oneinst['anets']  = [ "BR", "BL" ]
-    oneinst['longname']  = "University of Brasilia"
+    oneinst['longname']  = "University of Brasília"
     oneinst['url']       = "http://www.obsis.unb.br/"
     oneinst['arclink']   = "datasis.unb.br:18001"
     oneinst['seedlink']  = "datasis.unb.br:18000"
