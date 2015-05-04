@@ -105,7 +105,11 @@ def addI(openfile, i, style = None):
     print >>openfile,"<h2>%s</h2>" % i['longname']
     print >>openfile,"<p>%s</p>" % i['description']
     print >>openfile,"<pre>"
-    print >>openfile,'<b>WWW:</b> <a href="%s">%s</a>' % (i['url'], i['url'])
+    if i['url']:
+        print >>openfile,'<b>WWW:</b> <a href="%s">%s</a>' % (i['url'], i['url'])
+    else:
+        print >>openfile,'<b>WWW:</b> - n/a -'
+
     print >>openfile,"<b>ArcLink:</b> %s" % get(i['arclink'])
     print >>openfile,"<b>Seedlink:</b> %s" % get(i['seedlink'])
     print >>openfile,"<b>FDSN:</b> %s" % get(i['fdsnws'])
@@ -373,8 +377,8 @@ if __name__ == "__main__":
     oneinst['arclink']   = "seisrequest.iag.usp.br:18001"
     oneinst['seedlink']  = "seisrequest.iag.usp.br:18000"
     oneinst['fdsnws']    = "http://www.moho.iag.usp.br/fdsnws/"
-    oneinst['description'] = "USP is responsible for the South and east \
-    central Brazil Seismic monitoring. It operates the BL network and helps to \
+    oneinst['description'] = "USP is responsible for the South and  \
+    central east Brazil Seismic monitoring. It operates the BL network and helps to \
     operate the BR network in close cooperation with UnB.\
     "
     oneinst['lat']  = -23.547778
@@ -403,7 +407,7 @@ if __name__ == "__main__":
     oneinst['network'] = "NB"
     oneinst['anets']  = [ "NB" ]
     oneinst['longname']  = "Rio Grande do Norte Federal University"
-    oneinst['url']       = "http://sismosne.blogspot.com.br/"
+    oneinst['url']       = None
     oneinst['arclink']   = None
     oneinst['seedlink']  = "sislink.geofisica.ufrn.br:18000"
     oneinst['fdsnws']    = None
