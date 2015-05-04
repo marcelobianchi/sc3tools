@@ -33,8 +33,9 @@ import datetime, re
 Style Factory
 '''
 class StyleFactory(object):
-    def __init__(self):
+    def __init__(self, st = "http://maps.google.com/mapfiles/kml/shapes/triangle.png"):
         self.styles = {}
+        self.flag = st
 
     def dump(self, openfile):
         for ID in self.styles:
@@ -50,7 +51,7 @@ class StyleFactory(object):
                 print >>openfile,' <color>%s</color>' % color
             print >>openfile,' <scale>%f</scale>' % scale
             print >>openfile,' <Icon>'
-            print >>openfile,'  <href>http://maps.google.com/mapfiles/kml/shapes/triangle.png</href>'
+            print >>openfile,'  <href>%s</href>' % self.flag
             print >>openfile,' </Icon>'
             print >>openfile,'</IconStyle>'
             print >>openfile,'</Style>'
@@ -64,7 +65,7 @@ class StyleFactory(object):
         return "basic"
 
     def getstyle(self, size, color):
-        sh1 = "S_%s" %  hashlib.sha1("%.2f-%s" %  (size, color)).hexdigest()
+        sh1 = "S_%s" %  hashlib.sha1("%s-%.2f-%s" %  (self.flag, size, color)).hexdigest()
         if sh1 in self.styles:
             return sh1
         self.styles[sh1] = { }
@@ -89,7 +90,36 @@ def openKML(openfile, options, styler):
     print >>openfile,' <Document>'
 
     if styler:
-        styler.dump(openfile)
+        for style in styler:
+            style.dump(openfile)
+
+def get(v):
+    return v if v else "- n/a -"
+
+def addI(openfile, i, style = None):
+    print >>openfile,'  <Placemark>'
+    if i['style']:
+        print >>openfile,'  <styleUrl>#%s</styleUrl>' % i['style']
+    print >>openfile,'  <name>%s</name>' % (i['shortname'])
+    print >>openfile,'  <description><![CDATA['
+    print >>openfile,"<h2>%s</h2>" % i['longname']
+    print >>openfile,"<p>%s</p>" % i['description']
+    print >>openfile,"<pre>"
+    print >>openfile,'<b>WWW:</b> <a href="%s">%s</a>' % (i['url'], i['url'])
+    print >>openfile,"<b>ArcLink:</b> %s" % get(i['arclink'])
+    print >>openfile,"<b>Seedlink:</b> %s" % get(i['seedlink'])
+    print >>openfile,"<b>FDSN:</b> %s" % get(i['fdsnws'])
+
+    print >>openfile,"<b>Operated Network:</b> %s" % i['network']
+    print >>openfile,"<b>Shared Networks:</b>"
+    
+    print >>openfile," %s" % ( ", ".join(sorted(i['anets'])))
+
+    print >>openfile,'</pre>]]></description>'
+    print >>openfile,'   <Point>'
+    print >>openfile,'    <coordinates>%f,%f,%f</coordinates>' % (i['lon'], i['lat'], 0.0)
+    print >>openfile,'   </Point>'
+    print >>openfile,'  </Placemark>'
 
 def ptKML(openfile, options, code, channels, start, end, lon, lat, ele, desc, rmk, sensor, style):
     if start == None: return
@@ -285,6 +315,8 @@ if __name__ == "__main__":
                     end = None
                     open = "true"
                 
+                rmk = None
+                sen = None
                 try:
                     rmk = sta.remark().content()
                     if rmk.find(";") != -1:
@@ -329,13 +361,90 @@ if __name__ == "__main__":
                 else:
                     where[code] = data
 
+    inst = [ ]
+
+    ai = StyleFactory('http://maps.google.com/mapfiles/kml/shapes/flag.png')
+    oneinst = { }
+    oneinst['shortname'] = "USP",
+    oneinst['network'] = "BL"
+    oneinst['anets']  = [ "BR", "BL" ]
+    oneinst['longname']  = "University of São Paulo"
+    oneinst['url']       = "http://moho.iag.usp.br/"
+    oneinst['arclink']   = "seisrequest.iag.usp.br:18001"
+    oneinst['seedlink']  = "seisrequest.iag.usp.br:18000"
+    oneinst['fdsnws']    = "http://www.moho.iag.usp.br/fdsnws/"
+    oneinst['description'] = "USP is responsible for the South and east \
+    central Brazil Seismic monitoring. It operates the BL network and helps to \
+    operate the BR network in close cooperation with UnB.\
+    "
+    oneinst['lat']  = -23.547778
+    oneinst['lon'] = -46.635833
+    oneinst['style'] = ai.getstyle(1.5, getcolor("BL", "true"))
+    inst.append(oneinst)
+    
+    oneinst = { }
+    oneinst['shortname'] = "UnB"
+    oneinst['network'] = "BR"
+    oneinst['anets']  = [ "BR", "BL" ]
+    oneinst['longname']  = "University of Brasilia"
+    oneinst['url']       = "http://www.obsis.unb.br/"
+    oneinst['arclink']   = "datasis.unb.br:18001"
+    oneinst['seedlink']  = "datasis.unb.br:18000"
+    oneinst['fdsnws']    = None
+    oneinst['description'] = "UnB is responsible for monitoring the central and \
+    North Brazil and to operate the BR network."
+    oneinst['lat']  = -15.798889
+    oneinst['lon'] = -47.866667
+    oneinst['style'] = ai.getstyle(1.5, getcolor("BR", "true"))
+    inst.append(oneinst)
+
+    oneinst = { }
+    oneinst['shortname'] = "UFRN"
+    oneinst['network'] = "NB"
+    oneinst['anets']  = [ "NB" ]
+    oneinst['longname']  = "Rio Grande do Norte Federal University"
+    oneinst['url']       = "http://sismosne.blogspot.com.br/"
+    oneinst['arclink']   = None
+    oneinst['seedlink']  = "sislink.geofisica.ufrn.br:18000"
+    oneinst['fdsnws']    = None
+    oneinst['description'] = "UFRN is responsible for monitoring the Northeast Brazil, a region \
+    with higher seismicity levels in comparison to others regions in Brazil. Many of their stations \
+    are equipped with a broad-band sensor and accelerometers. They are responsible for the NB network."
+    oneinst['lat']  = -5.7950000
+    oneinst['lon'] = -35.208889
+    oneinst['style'] = ai.getstyle(1.5, getcolor("NB", "true"))
+    inst.append(oneinst)
+
+    oneinst = { }
+    oneinst['shortname'] = "ON"
+    oneinst['network'] = "ON"
+    oneinst['anets']  = [ "ON", "BR", "BL", "NB" ]
+    oneinst['longname']  = "National Observatory"
+    oneinst['url']       = "http://www.rsbr.gov.br/"
+    oneinst['arclink']   = "rsis1.on.br:18001"
+    oneinst['seedlink']  = "rsis1.on.br:18000"
+    oneinst['fdsnws']    = None
+    oneinst['description'] = "ON institution is the main aggregator node. It is responsible for archiving \
+    and to distribute data from all RSBR networks. Their network is named after their own name, ON and monitors \
+    most of the activity along Brazilian passive margin."
+    oneinst['lat']  = -22.902778
+    oneinst['lon'] = -43.207778
+    oneinst['style'] = ai.getstyle(1.5, getcolor("ON", "true"))
+    inst.append(oneinst)
+
     # Start KML
     #
-    openKML(fio, options, styler)
+    openKML(fio, options, [styler, ai])
+
+    newFolder(fio, "Institutions")
+    for i in inst:
+        addI(fio, i, None)
+
+    closeFolder(fio)
 
     for (k,g) in records.iteritems():
         if k == "false":
-            newFolder(fio, "Stations Already closed")
+            newFolder(fio, "Stations not in Operation")
         else:
             newFolder(fio, "Stations in Operation")
 
