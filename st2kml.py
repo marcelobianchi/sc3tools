@@ -74,12 +74,13 @@ class StyleFactory(object):
 
         return sh1
 
-def newFolder(openfile, name):
+def newFolder(openfile, name, desc = None):
     print >>openfile,' <Folder>'
     print >>openfile,'  <name>%s</name>' % name
-#     print >>openfile,'  <description><![CDATA['
-#     print >>openfile,'  <p>SeisComP3 Station Extracter st2kml<br/>'
-#     print >>openfile,']]>  </description>'
+    if desc is not None:
+        print >>openfile,'  <description><![CDATA['
+        print >>openfile,'  <p>%s<br/>' % desc
+        print >>openfile,']]>  </description>'
 
 '''
 KML Generators
