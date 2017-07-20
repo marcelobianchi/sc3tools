@@ -300,7 +300,10 @@ def datafromxml(filename):
 	#
 	## Assembly errors from Sc3 solution
 	eh  = math.sqrt(math.pow(ori.latitude().uncertainty(), 2)  + math.pow(ori.longitude().uncertainty(), 2))
-	ez  = ori.depth().uncertainty()
+	try:
+		ez  = ori.depth().uncertainty()
+	except Core.ValueException:
+		ez = 0.0
 	rms = ori.quality().standardError()
 
 	try:
