@@ -282,6 +282,9 @@ if __name__ == "__main__":
                 except seiscomp3.Core.ValueException:
                     end = None
                     open = "true"
+                except ValueError:
+                    end = None
+                    open = "true"
                 
                 try:
                     rmk = sta.remark().content()
@@ -290,6 +293,14 @@ if __name__ == "__main__":
                         dtl=rmk[2]
                         sen=rmk[1]
                         rmk=rmk[0]
+                except IndexError:
+                    rmk = None
+                    dtl = None
+                    sen = None
+                except ValueError:
+                    rmk = None
+                    dtl = None
+                    sen = None
                 except seiscomp3.Core.ValueException:
                     rmk = None
                     dtl = None
