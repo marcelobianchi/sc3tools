@@ -38,19 +38,19 @@ class StyleFactory(object):
 			color = self.styles[ID]['color']
 			scale = self.styles[ID]['size']
 
-			print >>openfile,'<Style id="%s">' % ID
-			print >>openfile,'<LabelStyle>'
-			print >>openfile,'<scale>0</scale>'
-			print >>openfile,'</LabelStyle>'
-			print >>openfile,'<IconStyle>'
+			print('<Style id="%s">' % ID, file = openfile)
+			print('<LabelStyle>', file = openfile)
+			print('<scale>0</scale>', file = openfile)
+			print('</LabelStyle>', file = openfile)
+			print('<IconStyle>', file = openfile)
 			if color:
-				print >>openfile,' <color>%s</color>' % color
-			print >>openfile,' <scale>%f</scale>' % scale
-			print >>openfile,' <Icon>'
-			print >>openfile,'  <href>http://maps.google.com/mapfiles/kml/shapes/donut.png</href>'
-			print >>openfile,' </Icon>'
-			print >>openfile,'</IconStyle>'
-			print >>openfile,'</Style>'
+				print(' <color>%s</color>' % color, file = openfile)
+			print(' <scale>%f</scale>' % scale, file = openfile)
+			print(' <Icon>', file = openfile)
+			print('  <href>http://maps.google.com/mapfiles/kml/shapes/donut.png</href>', file = openfile)
+			print(' </Icon>', file = openfile)
+			print('</IconStyle>', file = openfile)
+			print('</Style>', file = openfile)
 		return
 
 	def basicstyle(self):
@@ -74,21 +74,21 @@ class StyleFactory(object):
 KML Generators
 '''
 def openKML(openfile, options, styler):
-	print >>openfile,'<?xml version="1.0" encoding="UTF-8"?>'
-	print >>openfile,'<kml xmlns="http://www.opengis.net/kml/2.2" xmlns:gx="http://www.google.com/kml/ext/2.2">'
-	print >>openfile,' <Document>'
+	print('<?xml version="1.0" encoding="UTF-8"?>', file = openfile)
+	print('<kml xmlns="http://www.opengis.net/kml/2.2" xmlns:gx="http://www.google.com/kml/ext/2.2">', file = openfile)
+	print(' <Document>', file = openfile)
 
 	if styler:
 		styler.dump(openfile)
 
-	print >>openfile,' <Folder>'
-	print >>openfile,'  <name>Earthquakes</name>'
-	print >>openfile,'  <description><![CDATA['
-	print >>openfile,'  <p>SeisComP3 Event Extracter sc3xml2kml<br/>'
-	print >>openfile,'  Depth Filter: %s/%s<br/>' % (options.mindep, options.maxdep)
-	print >>openfile,'  Mag Filter: %s/%s<br/>' % (options.minmag, options.maxmag)
-	print >>openfile,'  Picks Filter: %s</p>' % options.minarrival
-	print >>openfile,']]>  </description>'
+	print(' <Folder>', file = openfile)
+	print('  <name>Earthquakes</name>', file = openfile)
+	print('  <description><![CDATA[', file = openfile)
+	print('  <p>SeisComP3 Event Extracter sc3xml2kml<br/>', file = openfile)
+	print('  Depth Filter: %s/%s<br/>' % (options.mindep, options.maxdep), file = openfile)
+	print('  Mag Filter: %s/%s<br/>' % (options.minmag, options.maxmag), file = openfile)
+	print('  Picks Filter: %s</p>' % options.minarrival, file = openfile)
+	print(']]>  </description>', file = openfile)
 
 def ptKML(openfile, options, time, lon, lat, dep, mag, magt, desc, nar, style):
 
@@ -96,38 +96,38 @@ def ptKML(openfile, options, time, lon, lat, dep, mag, magt, desc, nar, style):
 	if lon == None: return
 	if lat == None: return
 
-	print >>openfile,'  <Placemark>'
+	print('  <Placemark>', file = openfile)
 	if style:
-		print >>openfile,'  <styleUrl>#%s</styleUrl>' % style
-	print >>openfile,'  <name>%s %s</name>' % (time, "(%s)" % desc if desc else "")
-	print >>openfile,'  <description><![CDATA['
+		print('  <styleUrl>#%s</styleUrl>' % style, file = openfile)
+	print('  <name>%s %s</name>' % (time, "(%s)" % desc if desc else ""), file = openfile)
+	print('  <description><![CDATA[', file = openfile)
 	if time != None:
-		print >>openfile,'Origin time: %s<br/>' % time
-	print >>openfile,'Longitude: %.4f<br/>' % lon
-	print >>openfile,'Latitude: %.4f<br/>' % lat
+		print('Origin time: %s<br/>' % time, file = openfile)
+	print('Longitude: %.4f<br/>' % lon, file = openfile)
+	print('Latitude: %.4f<br/>' % lat, file = openfile)
 	if dep != None:
-		print >>openfile,'Depth: %.0f (km)<br/>' % dep
+		print('Depth: %.0f (km)<br/>' % dep, file = openfile)
 	if mag != None:
-		print >>openfile,'Mag. %.2f %s<br/>' % (mag, magt)
+		print('Mag. %.2f %s<br/>' % (mag, magt), file = openfile)
 	if nar != None:
-		print >>openfile,'Number of arrivals: %d<br/>' % (nar)
-	print >>openfile,']]></description>'
-	print >>openfile,'  <gx:TimeStamp><when>%s</when></gx:TimeStamp>' % (time)
+		print('Number of arrivals: %d<br/>' % (nar), file = openfile)
+	print(']]></description>', file = openfile)
+	print('  <gx:TimeStamp><when>%s</when></gx:TimeStamp>' % (time), file = openfile)
 
-	print >>openfile,'   <Point>'
+	print('   <Point>', file = openfile)
 	if options.skydepth:
-		print >>openfile,'<altitudeMode>absolute</altitudeMode>'
+		print('<altitudeMode>absolute</altitudeMode>', file = openfile)
 	if dep:
-		print >>openfile,'    <coordinates>%f,%f,%f</coordinates>' % (lon, lat, -1 * dep * 1000.0)
+		print('    <coordinates>%f,%f,%f</coordinates>' % (lon, lat, -1 * dep * 1000.0), file = openfile)
 	else:
-		print >>openfile,'    <coordinates>%f,%f,%f</coordinates>' % (lon, lat, 0.0)
-	print >>openfile,'   </Point>'
-	print >>openfile,'  </Placemark>'
+		print('    <coordinates>%f,%f,%f</coordinates>' % (lon, lat, 0.0), file = openfile)
+	print('   </Point>', file = openfile)
+	print('  </Placemark>', file = openfile)
 
 def closeKML(openfile):
-	print >>openfile,' </Folder>'
-	print >>openfile,' </Document>'
-	print >>openfile,' </kml>'
+	print(' </Folder>', file = openfile)
+	print(' </Document>', file = openfile)
+	print(' </kml>', file = openfile)
 
 '''
 Data Reader
@@ -143,26 +143,26 @@ def datafromxml(filename):
 	ep = DataModel.EventParameters.Cast(obj)
 
 	if type(ep) == type(None):
-		print >>sys.stderr,"File (%s) is no event, skipping." % filename
+		print ("File (%s) is no event, skipping." % filename, file = sys.stderr)
 		return data
 
 	if ep.eventCount == 0:
-		print >>sys.stderr,"File (%s) has no events, skipping." % filename
+		print ("File (%s) has no events, skipping." % filename, file = sys.stderr)
 		return data
 
 	evt = ep.event(0)
 	evt = DataModel.Event.Cast(evt)
 
 	if type(evt) == type(None):
-		print >>sys.stderr,"Cannot get event from file (%s), skipping." % filename
+		print ("Cannot get event from file (%s), skipping." % filename, file = sys.stderr)
 		return data
 
 	if evt.preferredOriginID() == "":
-		print >>sys.stderr,"No origin (%s), skipping." % filename
+		print ("No origin (%s), skipping." % filename, file = sys.stderr)
 		return data
 
 	if evt.preferredMagnitudeID() == "":
-		print >>sys.stderr,"No magnitude (%s)" % filename
+		print ("No magnitude (%s)" % filename, file = sys.stderr)
 
 	ori = ep.findOrigin(evt.preferredOriginID())
 	mag = ori.findMagnitude(evt.preferredMagnitudeID())
@@ -256,19 +256,19 @@ if __name__ == "__main__":
 	try:
 		float(options.magpower)
 	except:
-		print >>sys.stderr,"Bad mag power value."
+		print ("Bad mag power value.", file = sys.stderr)
 		sys.exit(1)
 
 	try:
 		float(options.magscale)
 	except:
-		print >>sys.stderr,"Bad mag scale value."
+		print ("Bad mag scale value.", file = sys.stderr)
 		sys.exit(1)
 
 	try:
 		float(options.depthscale)
 	except:
-		print >>sys.stderr,"Bad depth scale value."
+		print ("Bad depth scale value.", file = sys.stderr)
 		sys.exit(1)
 
 	# Loop each file
