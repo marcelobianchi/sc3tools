@@ -299,9 +299,20 @@ def datafromxml(filename):
 
 	#
 	## Assembly errors from Sc3 solution
-	eh  = math.sqrt(math.pow(ori.latitude().uncertainty(), 2)  + math.pow(ori.longitude().uncertainty(), 2))
-	ez  = ori.depth().uncertainty()
-	rms = ori.quality().standardError()
+	try:
+		eh  = math.sqrt(math.pow(ori.latitude().uncertainty(), 2)  + math.pow(ori.longitude().uncertainty(), 2))
+	except Core.ValueException:
+		eh = 0.0
+	
+	try:
+		ez  = ori.depth().uncertainty()
+	except Core.ValueException:
+		ez = 0.0
+
+	try:
+		rms = ori.quality().standardError()
+	except Core.ValueException:
+		rms = 0.0
 
 	try:
 		ev = Event(time = sc3timeparse(ori.time()),
